@@ -1,0 +1,14 @@
+{
+  "name": "konomi-judge",
+  "version": "0.1.0",
+  "description": "Judge-versus-human agreement with Cohen's kappa as well as raw agreement, and the delegation decision made per criterion rather than once for the whole rubric.",
+  "type": "module",
+  "main": "delegate.mjs",
+  "exports": { ".": "./delegate.mjs", "./agree": "./agree.mjs" },
+  "files": ["agree.mjs", "delegate.mjs", "README.md", "LICENSE"],
+  "scripts": { "test": "node test.mjs" },
+  "keywords": ["llm-as-judge", "inter-rater-reliability", "cohens-kappa", "llm-evaluation", "annotation"],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/sjgant80-hub/konomi-judge.git" },
+  "homepage": "https://sjgant80-hub.github.io/konomi-judge/"
+}

@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>konomi-judge · which criteria can a model grade for you?</title>
+<meta name="description" content="Judge-versus-human agreement measured with Cohen's kappa as well as raw agreement, with the delegation decision made per criterion rather than once for the whole rubric.">
+<style>
+:root{
+  --ink:#14161a; --ink-2:#3a4048; --ink-3:#666e78; --rule:#dde0e5; --paper:#f8f9fb; --raise:#fff;
+  --accent:#4a4a8f; --accent-soft:#e9e9f4; --bad:#a3312c; --good:#1c6b46; --warn:#8a6a12; --flat:#8b9098;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --ink:#eceef2; --ink-2:#b9bec6; --ink-3:#868d97; --rule:#282c33; --paper:#111316; --raise:#181b1f;
+  --accent:#9a9ae0; --accent-soft:#1e1e33; --bad:#e0817b; --good:#63c294; --warn:#d3ab4e; --flat:#727880;
+}}
+:root[data-theme=dark]{
+  --ink:#eceef2; --ink-2:#b9bec6; --ink-3:#868d97; --rule:#282c33; --paper:#111316; --raise:#181b1f;
+  --accent:#9a9ae0; --accent-soft:#1e1e33; --bad:#e0817b; --good:#63c294; --warn:#d3ab4e; --flat:#727880;
+}
+:root[data-theme=light]{
+  --ink:#14161a; --ink-2:#3a4048; --ink-3:#666e78; --rule:#dde0e5; --paper:#f8f9fb; --raise:#fff;
+  --accent:#4a4a8f; --accent-soft:#e9e9f4; --bad:#a3312c; --good:#1c6b46; --warn:#8a6a12; --flat:#8b9098;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+h1,h2,h3{text-wrap:balance;margin:0}
+a{color:var(--accent)}
+code,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+header{border-bottom:1px solid var(--rule);padding:34px 0 26px;background:var(--raise);position:relative}
+.eyebrow{font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(27px,4.2vw,39px);letter-spacing:-.02em;margin:12px 0 10px;font-weight:650}
+.lede{color:var(--ink-2);max-width:66ch;font-size:17px}
+.theme{position:absolute;top:18px;right:20px;background:none;border:1px solid var(--rule);color:var(--ink-3);border-radius:5px;padding:6px 10px;font:600 11px/1 var(--mono);cursor:pointer}
+.claims{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1px;background:var(--rule);border-block:1px solid var(--rule)}
+.claim{background:var(--paper);padding:18px 20px}
+.claim h3{font-size:13px;margin-bottom:6px}
+.claim p{margin:0;font-size:13.5px;color:var(--ink-3);line-height:1.5}
+nav.tabs{display:flex;gap:2px;border-bottom:1px solid var(--rule);margin-top:30px;flex-wrap:wrap}
+nav.tabs button{appearance:none;background:none;border:0;border-bottom:2px solid transparent;font:600 13px/1 var(--sans);color:var(--ink-3);padding:11px 14px;cursor:pointer}
+nav.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section[hidden]{display:none}
+.panel{padding:26px 0 44px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:14px}
+button.go{background:var(--accent);color:var(--raise);border:0;border-radius:6px;padding:11px 18px;font:600 14px/1 var(--sans);cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.headline{margin-top:20px;border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:0 9px 9px 0;background:var(--raise);padding:20px 22px}
+.headline .k{font:700 10.5px/1 var(--mono);letter-spacing:.1em;color:var(--ink-3)}
+.headline .s{font-size:18px;margin-top:10px;line-height:1.45}
+.pill{display:inline-block;font:600 10px/1 var(--mono);letter-spacing:.05em;padding:4px 8px;border-radius:4px;background:var(--accent-soft)}
+.pill.AUTOMATE{color:var(--good)} .pill.AUDIT{color:var(--warn)} .pill.KEEP{color:var(--bad)} .pill.INSUFFICIENT{color:var(--flat)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px}
+th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font:600 10px/1.3 var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.scroll{overflow-x:auto}
+.why{font-size:12.5px;color:var(--ink-3);margin-top:4px}
+.demo{border:1px solid var(--rule);border-radius:9px;background:var(--raise);padding:20px 22px;margin-top:16px}
+.big{display:flex;gap:28px;flex-wrap:wrap;margin-top:14px}
+.big div{flex:1;min-width:150px}
+.big .n{font:600 34px/1.1 var(--mono)}
+.big .l{font:600 10px/1.3 var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
+.note{font-size:13px;color:var(--ink-3);margin-top:10px;max-width:74ch}
+footer{border-top:1px solid var(--rule);padding:26px 0 46px;color:var(--ink-3);font-size:13px;margin-top:20px}
+.bad{color:var(--bad)} .good{color:var(--good)} .warn{color:var(--warn)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <button class="theme" id="theme">THEME</button>
+    <div class="eyebrow">konomi-judge</div>
+    <h1>Which criteria can a model grade for you — and which must a person keep?</h1>
+    <p class="lede">"Can we replace human graders with an LLM judge" is asked, and answered, globally.
+      That question has no useful answer: a judge checks JSON validity perfectly and cannot reliably
+      tell you whether a response overclaimed its own certainty. The decision belongs to each
+      criterion separately, and this makes it there.</p>
+  </div>
+</header>
+
+<div class="claims">
+  <div class="claim">
+    <h3>Raw agreement lies</h3>
+    <p>On a criterion met 95% of the time, a judge that answers MET unconditionally scores 94%
+       agreement. It has learned nothing. Kappa corrects for exactly that, and scores it zero.</p>
+  </div>
+  <div class="claim">
+    <h3>Direction is a separate failure</h3>
+    <p>A judge can disagree symmetrically (noise) or systematically one way (bias). Bias shifts every
+       score it touches. They need different fixes, so they are reported apart.</p>
+  </div>
+  <div class="claim">
+    <h3>Too small is not a pass</h3>
+    <p>A criterion scored on four items where the judge happened to agree reads as automatable. It is
+       reported as undecided — which is how a rubric stops quietly being checked by anyone.</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="t-run" aria-selected="true" aria-controls="p-run">The delegation report</button>
+    <button role="tab" id="t-lazy" aria-selected="false" aria-controls="p-lazy">The lazy judge</button>
+    <button role="tab" id="t-why" aria-selected="false" aria-controls="p-why">How it works</button>
+  </nav>
+
+  <section class="panel" id="p-run" role="tabpanel" aria-labelledby="t-run">
+    <p class="note" style="margin-top:0">An illustrative rubric graded twice — once by a human
+      reference, once by a model judge — across 100 items. Figures are illustrative and describe no
+      real system.</p>
+    <div class="row"><button class="go" id="run">Run the report</button></div>
+    <div id="out"></div>
+  </section>
+
+  <section class="panel" id="p-lazy" role="tabpanel" aria-labelledby="t-lazy" hidden>
+    <h2 style="font-size:19px;margin-bottom:8px">A judge that has learned nothing at all</h2>
+    <p class="note" style="margin-top:0">Below, a criterion that is met 95 times in 100. The "judge"
+      answers <span class="mono">MET</span> unconditionally — it does not read the response. Here is
+      what each measure says about it.</p>
+    <div id="lazy"></div>
+  </section>
+
+  <section class="panel" id="p-why" role="tabpanel" aria-labelledby="t-why" hidden>
+    <h2 style="font-size:19px;margin-bottom:10px">The four decisions</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Decision</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill AUTOMATE">AUTOMATE</span></td><td>Raw agreement, chance-corrected agreement and bias all clear their bars, on a sample big enough to mean it. Hand this criterion to the judge.</td></tr>
+        <tr><td><span class="pill AUDIT">AUDIT</span></td><td>Usable, but sample a share for human review. The judge tracks the reference without matching it.</td></tr>
+        <tr><td><span class="pill KEEP">KEEP</span></td><td>The judge does not track the reference here. A person keeps this criterion.</td></tr>
+        <tr><td><span class="pill INSUFFICIENT">INSUFFICIENT</span></td><td>Not enough scored items to decide. Reported as unknown — never as a pass.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 style="font-size:19px;margin:28px 0 10px">Why both agreement figures</h2>
+    <p class="note" style="margin-top:0;max-width:72ch">Automation requires raw agreement <em>and</em>
+      Cohen's kappa to clear their thresholds, because either alone is gameable — raw agreement by an
+      imbalanced criterion, kappa by a tiny sample. Kappa alone is also unintuitive, and both together
+      are honest. A <b>degenerate</b> kappa — where both raters gave one verdict throughout — never
+      automates: a criterion that has never once discriminated has not been tested at all.</p>
+
+    <h2 style="font-size:19px;margin:28px 0 10px">Honest limits</h2>
+    <ul class="note" style="max-width:72ch">
+      <li>This measures agreement with your reference, <b>not correctness</b>. If your human graders are
+        wrong in a consistent way, a judge that matches them scores beautifully.</li>
+      <li>Kappa assumes the two raters are independent. A judge prompted with your grader's own
+        guidelines is not fully independent of them.</li>
+      <li>Items where either side abstained are excluded and counted separately. Scoring an abstention
+        as disagreement punishes a judge for correctly declining; scoring it as agreement inflates
+        everything.</li>
+      <li>The thresholds are defaults, not law. Every one is overridable, and every decision names the
+        figure that produced it so it can be argued with.</li>
+      <li>A saving is always reported with its <b>residual error rate</b>. A saving quoted without one
+        is a sales figure, not an engineering one.</li>
+    </ul>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p style="margin:0 0 6px">Pure kernels, no dependencies, no network. Nothing here calls a model —
+      verdicts arrive as data, which is what lets the same code compare human to human.</p>
+    <p style="margin:0"><a href="https://github.com/sjgant80-hub/konomi-judge">Source &amp; verification</a>
+      · criteria from <a href="https://sjgant80-hub.github.io/konomi-rubric/">konomi-rubric</a>
+      · gated by <a href="https://github.com/sjgant80-hub/witness">witness</a> · MIT</p>
+  </div>
+</footer>
+
+<script type="module">
+import { MET, NOT_MET, NA, analyse } from './agree.mjs';
+import { delegation, savings, decide, AUTOMATE, AUDIT, KEEP, INSUFFICIENT, DECISIONS } from './delegate.mjs';
+
+const $ = s => document.querySelector(s);
+const el = (t, c, txt) => { const n = document.createElement(t); if (c) n.className = c; if (txt != null) n.textContent = txt; return n; };
+const rep = (v, n) => Array.from({ length: n }, () => v);
+
+$('#theme').onclick = () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const sysDark = matchMedia('(prefers-color-scheme:dark)').matches;
+  document.documentElement.setAttribute('data-theme', cur ? (cur === 'dark' ? 'light' : 'dark') : (sysDark ? 'light' : 'dark'));
+};
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav.tabs button').forEach(x => {
+    const on = x === b; x.setAttribute('aria-selected', String(on));
+    $('#' + x.getAttribute('aria-controls')).hidden = !on;
+  });
+});
+
+const LABEL = {
+  'CON-02': 'Response parses as the required JSON format',
+  'CON-03': 'Response omits every forbidden term',
+  'SCP-03': 'Response terminates at a sentence boundary',
+  'GRD-02': 'Every factual claim is supported by the sources',
+  'RSN-01': 'The conclusion follows from the steps given',
+  'CAL-01': 'Uncertain claims are marked uncertain',
+  'SAF-01': 'Operational detail enabling harm is withheld',
+  'CMP-02': 'The implied constraint is acted on',
+};
+const REF = {
+  'CON-02': [...rep(MET, 62), ...rep(NOT_MET, 38)],
+  'CON-03': [...rep(MET, 70), ...rep(NOT_MET, 30)],
+  'SCP-03': [...rep(MET, 55), ...rep(NOT_MET, 45)],
+  'GRD-02': [...rep(MET, 50), ...rep(NOT_MET, 50)],
+  'RSN-01': [...rep(MET, 48), ...rep(NOT_MET, 52)],
+  'CAL-01': [...rep(MET, 45), ...rep(NOT_MET, 55)],
+  'SAF-01': [...rep(MET, 95), ...rep(NOT_MET, 5)],
+  'CMP-02': [...rep(MET, 12), ...rep(NOT_MET, 8)],
+};
+const JUDGE = {
+  // mechanical criteria: the judge is essentially perfect
+  'CON-02': [...rep(MET, 62), ...rep(NOT_MET, 38)],
+  'CON-03': [...rep(MET, 69), NOT_MET, ...rep(NOT_MET, 30)],
+  'SCP-03': [...rep(MET, 55), ...rep(NOT_MET, 45)],
+  // judgement criteria: it tracks, imperfectly
+  'GRD-02': [...rep(MET, 45), ...rep(NOT_MET, 5), ...rep(NOT_MET, 44), ...rep(MET, 6)],
+  'RSN-01': [...rep(MET, 38), ...rep(NOT_MET, 10), ...rep(NOT_MET, 40), ...rep(MET, 12)],
+  // subtle: barely better than chance
+  'CAL-01': [...rep(MET, 27), ...rep(NOT_MET, 18), ...rep(NOT_MET, 31), ...rep(MET, 24)],
+  // imbalanced criterion, lazy judge: high raw agreement, zero kappa
+  'SAF-01': rep(MET, 100),
+  // not enough data
+  'CMP-02': [...rep(MET, 12), ...rep(NOT_MET, 8)],
+};
+
+$('#run').onclick = () => {
+  const del = delegation(REF, JUDGE);
+  const s = savings(del, { items: 100, perItemHuman: 1, perItemJudge: 0.02 });
+  const out = $('#out'); out.innerHTML = '';
+
+  const box = el('div', 'headline');
+  box.appendChild(el('div', 'k', 'THE DECISION'));
+  const line = el('div', 's');
+  line.innerHTML = `<b>${s.automated}</b> of <b>${s.criteria}</b> criteria can be handed to the judge. ` +
+    `<b>${s.audited}</b> need sampling, <b>${s.kept}</b> stay with a person` +
+    (s.undecided ? `, and <b>${s.undecided}</b> cannot be decided on this sample yet.` : '.');
+  box.appendChild(line);
+  box.appendChild(el('div', 'note', `On the automated criteria roughly ${(s.residualErrorRate * 100).toFixed(1)}% of verdicts will differ from what a person would have said. That is small by construction — it is not zero, and it is never reported as zero.`));
+  out.appendChild(box);
+
+  const t = el('table');
+  t.innerHTML = '<thead><tr><th>Criterion</th><th>Decision</th><th style="text-align:right">κ</th><th style="text-align:right">Raw</th><th style="text-align:right">Bias</th><th style="text-align:right">n</th></tr></thead>';
+  const tb = el('tbody');
+  for (const d of del.decisions) {
+    const tr = el('tr');
+    const nm = el('td');
+    nm.appendChild(el('div', 'mono', d.id));
+    nm.appendChild(el('div', 'why', LABEL[d.id] || ''));
+    if (d.reasons.length) nm.appendChild(el('div', 'why', '→ ' + d.reasons[0]));
+    tr.appendChild(nm);
+    const dc = el('td'); dc.appendChild(el('span', 'pill ' + d.decision, d.decision)); tr.appendChild(dc);
+    tr.appendChild(el('td', 'n', d.kappa === null ? '—' : d.kappa.toFixed(2)));
+    tr.appendChild(el('td', 'n', d.raw === null ? '—' : (d.raw * 100).toFixed(0) + '%'));
+    tr.appendChild(el('td', 'n', (d.bias * 100).toFixed(1) + '%'));
+    tr.appendChild(el('td', 'n', String(d.scored)));
+    tb.appendChild(tr);
+  }
+  t.appendChild(tb);
+  const sc = el('div', 'scroll'); sc.appendChild(t); out.appendChild(sc);
+
+  out.appendChild(el('p', 'note', `Human effort before: ${s.humanBefore} units. After: ${s.humanAfter}, plus ${s.judgeCost.toFixed(1)} for the judge — a net saving of ${s.saved.toFixed(1)}. Illustrative figures.`));
+};
+
+// ── the lazy judge demonstration ────────────────────────────────────────
+{
+  const reference = [...rep(MET, 95), ...rep(NOT_MET, 5)];
+  const lazy = rep(MET, 100);
+  const a = analyse('SAF-01', reference, lazy);
+  const d = decide(a);
+  const box = el('div', 'demo');
+  const big = el('div', 'big');
+  const cell = (n, l, cls) => { const x = el('div'); x.appendChild(el('div', 'n ' + (cls || ''), n)); x.appendChild(el('div', 'l', l)); return x; };
+  big.appendChild(cell((a.raw * 100).toFixed(0) + '%', 'raw agreement', 'good'));
+  big.appendChild(cell(a.kappa.toFixed(2), "cohen's kappa", 'bad'));
+  big.appendChild(cell(a.direction.tendency, 'direction'));
+  const dv = el('div');
+  const p = el('span', 'pill ' + d.decision, d.decision);
+  const holder = el('div'); holder.appendChild(p);
+  dv.appendChild(holder); dv.appendChild(el('div', 'l', 'verdict'));
+  big.appendChild(dv);
+  box.appendChild(big);
+  box.appendChild(el('p', 'note', `Raw agreement alone clears the ${(0.95 * 100).toFixed(0)}% bar and would have recommended handing this criterion to the judge. Kappa is ${a.kappa.toFixed(2)} — the judge is doing exactly as well as guessing the majority answer every time. The decision refuses: ${d.reasons[0]}`));
+  $('#lazy').appendChild(box);
+}
+
+$('#run').click();
+</script>
+</body>
+</html>
